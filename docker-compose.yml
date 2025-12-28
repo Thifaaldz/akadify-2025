@@ -1,9 +1,3 @@
-version: '3.8'
-
-networks:
-  app_network:
-  workflow_network:
-
 services:
   php:
     build:
@@ -14,7 +8,6 @@ services:
       - XDEBUG=${XDEBUG:-false}
     volumes:
       - ./src:/var/www/html
-      - ./src/storage/app:/var/www/html/storage/app
     depends_on:
       db:
         condition: service_healthy
@@ -73,16 +66,13 @@ services:
       - N8N_PROTOCOL=http
       - N8N_SECURE_COOKIE=false
       - TZ=Asia/Jakarta
+      - N8N_FILESYSTEM_ALLOWED_PATHS=/home/node/.n8n-files
     volumes:
       - ./n8n/data:/home/node/.n8n
       - ./src/storage/app/ijazah:/home/node/.n8n-files/ijazah
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
-      - workflow_network
       - app_network
-
+      - workflow_network
 
   ocr:
     build:
@@ -111,3 +101,9 @@ services:
       - ./waha/media:/app/media
     networks:
       - workflow_network
+
+networks:
+  app_network:
+    driver: bridge
+  workflow_network:
+    driver: bridge
