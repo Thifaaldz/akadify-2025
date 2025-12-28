@@ -1,18 +1,26 @@
 version: '3.8'
+
+networks:
+  app_network:
+  workflow_network:
+
 services:
   php:
     build:
       context: ./php
     container_name: ${COMPOSE_PROJECT_NAME}_php
-    # Teruskan variabel PROJECT_NAME ke dalam kontainer
     environment:
       - PROJECT_NAME=${PROJECT_NAME}
       - XDEBUG=${XDEBUG:-false}
     volumes:
       - ./src:/var/www/html
+      - ./src/storage/app:/var/www/html/storage/app
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - app_network
+
   nginx:
     build:
       context: ./nginx
@@ -26,6 +34,9 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - php
+    networks:
+      - app_network
+
   db:
     image: mariadb:10.11
     container_name: ${COMPOSE_PROJECT_NAME}_db
@@ -38,17 +49,19 @@ services:
     ports:
       - "13306:3306"
     environment:
-      # Database ini akan dibuat saat kontainer pertama kali dijalankan
       MYSQL_DATABASE: ${PROJECT_NAME}
       MYSQL_ROOT_PASSWORD: p455w0rd
     volumes:
       - ./db/conf.d:/etc/mysql/conf.d
       - ./db/data:/var/lib/mysql
+    networks:
+      - app_network
 
   n8n:
     image: n8nio/n8n:latest
     container_name: ${COMPOSE_PROJECT_NAME}_n8n
     restart: unless-stopped
+    user: "1000:1000"
     ports:
       - "5678:5678"
     environment:
@@ -59,14 +72,29 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - N8N_SECURE_COOKIE=false
-      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
       - TZ=Asia/Jakarta
     volumes:
       - ./n8n/data:/home/node/.n8n
+      - ./src/storage/app/ijazah:/home/node/.n8n-files/ijazah
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - workflow_network
+      - app_network
 
+
+  ocr:
+    build:
+      context: ./ocr
+    container_name: ${COMPOSE_PROJECT_NAME}_ocr
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./src/storage/app:/data
+    networks:
+      - workflow_network
 
   waha:
     image: devlikeapro/whatsapp-http-api:latest
@@ -81,3 +109,5 @@ services:
     volumes:
       - ./waha/sessions:/app/sessions
       - ./waha/media:/app/media
+    networks:
+      - workflow_network
