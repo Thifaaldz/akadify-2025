@@ -44,3 +44,40 @@ services:
     volumes:
       - ./db/conf.d:/etc/mysql/conf.d
       - ./db/data:/var/lib/mysql
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: ${COMPOSE_PROJECT_NAME}_n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin123
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_SECURE_COOKIE=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - TZ=Asia/Jakarta
+    volumes:
+      - ./n8n/data:/home/node/.n8n
+    depends_on:
+      db:
+        condition: service_healthy
+
+
+  waha:
+    image: devlikeapro/whatsapp-http-api:latest
+    container_name: ${COMPOSE_PROJECT_NAME}_waha
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - WHATSAPP_DEFAULT_ENGINE=WEBJS
+      - WHATSAPP_RESTART_ALL_SESSIONS=true
+      - TZ=Asia/Jakarta
+    volumes:
+      - ./waha/sessions:/app/sessions
+      - ./waha/media:/app/media
