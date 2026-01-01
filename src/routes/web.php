@@ -1,6 +1,5 @@
 <?php
 
-use App\Livewire\UploadIjazah;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use Illuminate\Support\Facades\Response;
@@ -19,8 +18,6 @@ Livewire::setScriptRoute(function ($handle) {
 /*
 / END
 */
-//Route::get('/', function () {
-//    return view('welcome');
-//});
-
-Route::get('/upload-ijazah', UploadIjazah::class);
+Route::get('/', function () {
+    return view('welcome');
+});
