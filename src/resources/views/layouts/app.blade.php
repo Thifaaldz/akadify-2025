@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <title>Sistem Verifikasi Ijazah</title>
 
-    {{-- Livewire styles --}}
+    <link rel="stylesheet" href="{{ asset('front/assets/css/akadify.css') }}">
+
     @livewireStyles
 </head>
 <body>
@@ -13,7 +14,7 @@
         {{ $slot }}
     </main>
 
-    {{-- Livewire scripts --}}
     @livewireScripts
+    <script src="{{ asset('front/assets/js/akadify.js') }}"></script>
 </body>
 </html>
