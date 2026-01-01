@@ -8,12 +8,10 @@ import os
 app = FastAPI(title="Ijazah OCR Service")
 
 
-# ==========================
-# Request Schema
-# ==========================
 class OCRRequest(BaseModel):
     phone: str
     file_path: str
+    student_id: str
 
 
 # ==========================
@@ -24,8 +22,7 @@ def normalize(text: str) -> str:
 
 
 def extract_tahun_lulus(text: str):
-    lines = text.split('\n')
-    for line in reversed(lines):
+    for line in reversed(text.split('\n')):
         if 'kabupaten' in line or 'kota' in line:
             match = re.search(r'(20\d{2})', line)
             if match:
@@ -36,7 +33,7 @@ def extract_tahun_lulus(text: str):
 # ==========================
 # OCR Core Logic
 # ==========================
-def process_ocr(path: str) -> dict:
+def process_ocr(path: str):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -46,55 +43,77 @@ def process_ocr(path: str) -> dict:
 
     raw_text = pytesseract.image_to_string(
         img,
-        lang='ind+eng'
-    ).lower()
+        lang='ind+eng',
+        config='--oem 3 --psm 6'
+    )
+
+    text = raw_text.lower()
 
     result = {
-        "nisn": None,
         "nama": None,
-        "tahun_lulus": None,
+        "nisn": None,
         "sekolah": None,
-        "raw_text": raw_text
+        "tahun_lulus": None,
+        "raw_text": text
     }
 
+    # =====================
     # NISN
-    nisn_match = re.search(r'\b\d{10}\b', raw_text)
+    # =====================
+    nisn_match = re.search(r'\b\d{10}\b', text)
     if nisn_match:
         result["nisn"] = nisn_match.group()
 
-    # Nama
-    lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
-    for i, line in enumerate(lines):
-        if 'dengan ini menyatakan' in line or 'dengan ini menerangkan' in line:
-            if i + 1 < len(lines):
-                result["nama"] = normalize(lines[i + 1])
-                break
+    # =====================
+    # NAMA (BOUNDARY-BASED, OCR-SAFE)
+    # =====================
+    nama_match = re.search(
+        r'menyatakan\s+bahwa\s*[:\-]?\s*(.*?)\s*tempat,\s*tanggal\s*lahir',
+        text,
+        re.DOTALL | re.IGNORECASE
+    )
 
-    # Tahun Lulus
-    result["tahun_lulus"] = extract_tahun_lulus(raw_text)
+    if nama_match:
+        kandidat = re.sub(r'[^a-z\s]', '', nama_match.group(1))
+        kandidat = normalize(kandidat)
+        if len(kandidat.split()) >= 2:
+            result["nama"] = kandidat
 
-    # Sekolah
-    for line in lines:
+    # =====================
+    # TAHUN LULUS
+    # =====================
+    result["tahun_lulus"] = extract_tahun_lulus(text)
+
+    # =====================
+    # SEKOLAH
+    # =====================
+    for line in text.split('\n'):
         if 'satuan pendidikan' in line or 'saluan pendidikan' in line:
-            result["sekolah"] = normalize(
+            cleaned = (
                 line.replace('satuan pendidikan', '')
                     .replace('saluan pendidikan', '')
                     .replace(':', '')
             )
+            result["sekolah"] = normalize(cleaned)
             break
 
     return result
 
 
 # ==========================
-# API Endpoint
+# API Endpoint (DATA ONLY)
 # ==========================
 @app.post("/ocr")
 def ocr_endpoint(payload: OCRRequest):
-    ocr_result = process_ocr(payload.file_path)
+    ocr = process_ocr(payload.file_path)
 
     return {
         "phone": payload.phone,
         "file_path": payload.file_path,
-        **ocr_result
+        "student_id": payload.student_id,
+        "nama_ocr": ocr["nama"],
+        "nisn_ocr": ocr["nisn"],
+        "sekolah_ocr": ocr["sekolah"],
+        "tahun_lulus_ocr": ocr["tahun_lulus"],
+        "raw_text": ocr["raw_text"]
     }
