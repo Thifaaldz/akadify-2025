@@ -6,3 +6,4 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/verifications', [VerificationController::class, 'store']);
 Route::post('/ocr-results', [OcrResultController::class, 'store']);
+Route::patch('/verifications/{verification}', [VerificationController::class, 'update']);

@@ -20,3 +20,29 @@ node node ijazah.jpg
 
 
 Jika sudah, Read/Write File node akan langsung jalan.
+
+Callback from n8n (OCR / verification result)
+-------------------------------------------
+
+When n8n finishes OCR or verification, it should POST back to your app at `/api/verifications` with either:
+
+- a `verification_id` (to update the existing `Verification` record) and `valid` (boolean), or
+- a `verification_id` and `status` (string `VERIFIED` or `REJECTED`).
+
+Example payloads:
+
+1) Using `valid` boolean:
+{
+	"verification_id": 123,
+	"valid": true,
+	"reason": null
+}
+
+2) Using explicit `status`:
+{
+	"verification_id": 123,
+	"status": "VERIFIED",
+	"reason": null
+}
+
+The app will update the existing `Verification` record's `status` and `reason` accordingly and dispatch the `verification_verified` / `verification_rejected` event.

@@ -11,6 +11,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\BadgeColumn;
+use Illuminate\Database\Eloquent\Builder;
 
 class VerificationResource extends Resource
 {
@@ -119,4 +120,12 @@ class VerificationResource extends Resource
             'edit' => Pages\EditVerification::route('/{record}/edit'),
         ];
     }
+
+    /**
+     * Limit the resource query to only VERIFIED records for the index/list view.
+     */
+    // public static function getEloquentQuery(): Builder
+    // {
+    //     return parent::getEloquentQuery()->where('status', 'VERIFIED');
+    // }
 }
