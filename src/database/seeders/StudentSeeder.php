@@ -30,5 +30,14 @@ class StudentSeeder extends Seeder
             'sekolah' => 'SMKN 1 Kab Tangerang',
             'phone' => '62895330347429', // kosong jika belum ada nomor telepon
         ]);
+
+                // Student kedua (baru)
+        Student::create([
+            'nama' => 'Muhammad Ndryan',
+            'nisn' => '0082538844',
+            'tahun_lulus' => '2025',
+            'sekolah' => 'SMKN 1 Kab Tangerang',
+            'phone' => '62895330347429', // kosong jika belum ada nomor telepon
+        ]);
     }
 }

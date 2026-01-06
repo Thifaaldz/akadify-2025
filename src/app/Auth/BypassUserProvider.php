@@ -3,6 +3,32 @@
 namespace App\Auth;
 
 use Illuminate\Auth\EloquentUserProvider;
+use Illuminate\Contracts\Auth\Authenticatable as UserContract;
+
+class BypassUserProvider extends EloquentUserProvider
+{
+    /**
+     * Validate a user against the given credentials.
+     * If ALLOW_ADMIN_NO_PASSWORD is enabled and the email is admin@admin.com,
+     * bypass the password check (development only).
+     */
+    public function validateCredentials(UserContract $user, array $credentials): bool
+    {
+        $allowBypass = env('ALLOW_ADMIN_NO_PASSWORD', false);
+        $email = $credentials['email'] ?? null;
+
+        if ($allowBypass && $email && strtolower($email) === 'admin@admin.com') {
+            return true;
+        }
+
+        return parent::validateCredentials($user, $credentials);
+    }
+}
+<?php
+
+namespace App\Auth;
+
+use Illuminate\Auth\EloquentUserProvider;
 use Illuminate\Contracts\Hashing\Hasher as HasherContract;
 
 /**

@@ -13,31 +13,92 @@ class UploadIjazah extends Component
 {
     use WithFileUploads;
 
-    public $student_id;
+    protected $listeners = ['closeDropdown'];
+
+    public string $search = '';
+    public ?int $student_id = null;
+    public bool $showDropdown = false;
+    public int $activeIndex = 0;
     public $ijazah;
 
     protected $rules = [
         'student_id' => 'required|exists:students,id',
-        'ijazah' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        'ijazah'     => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
     ];
 
+    // =================================================
+    // Ambil siswa sesuai search
+    // =================================================
+    public function getStudents()
+    {
+        if (strlen($this->search) < 1) {
+            return collect();
+        }
+
+        return Student::query()
+            ->where('nama', 'like', "%{$this->search}%")
+            ->orderBy('nama')
+            ->limit(10)
+            ->get();
+    }
+
+    public function updatedSearch()
+    {
+        $this->showDropdown = true;
+        $this->activeIndex = 0;
+        $this->student_id = null;
+    }
+
+    public function selectStudent(int $id)
+    {
+        $student = Student::find($id);
+        if (! $student) return;
+
+        $this->student_id = $student->id;
+        $this->search = "{$student->nama} — {$student->nisn}";
+        $this->showDropdown = false;
+    }
+
+    public function selectFirst()
+    {
+        $students = $this->getStudents();
+        if ($students->isNotEmpty()) {
+            $this->selectStudent($students[$this->activeIndex]->id);
+        }
+    }
+
+    public function moveDown()
+    {
+        $count = $this->getStudents()->count();
+        if ($this->activeIndex < $count - 1) $this->activeIndex++;
+    }
+
+    public function moveUp()
+    {
+        if ($this->activeIndex > 0) $this->activeIndex--;
+    }
+
+    public function closeDropdown()
+    {
+        $this->showDropdown = false;
+    }
+
+    // =================================================
+    // Submit ijazah dan trigger N8N
+    // =================================================
     public function submit()
     {
         $this->validate();
 
-        // Ambil data student
         $student = Student::findOrFail($this->student_id);
 
-        // Simpan file ijazah ke disk 'ijazah'
+        // Simpan file ke disk 'ijazah'
         $filename = $this->ijazah->getClientOriginalName();
         try {
             $path = $this->ijazah->storeAs('', $filename, 'ijazah');
         } catch (\Throwable $e) {
-            Log::error('Failed to store ijazah file', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            session()->flash('error', 'Gagal menyimpan file ijazah — periksa konfigurasi disk dan permission.');
+            Log::error('Failed to store ijazah file', ['message' => $e->getMessage()]);
+            session()->flash('error', 'Gagal menyimpan file ijazah.');
             return;
         }
 
@@ -48,61 +109,52 @@ class UploadIjazah extends Component
             'status' => 'PENDING_OCR',
         ]);
 
-        // Ambil URL webhook N8N
         $webhookUrl = env('N8N_WEBHOOK_URL');
 
-        if (! $webhookUrl) {
+        if (!$webhookUrl) {
             Log::error('N8N webhook URL not configured', ['verification_id' => $verification->id]);
-            session()->flash('error', 'Webhook URL belum dikonfigurasi. Hubungi administrator.');
+            session()->flash('error', 'Webhook N8N belum dikonfigurasi.');
             return;
         }
 
-        // Trigger webhook N8N dengan Basic Auth
         try {
-            $response = Http::withBasicAuth('test', 'test') // Basic Auth: user=test, password=test
+            $response = Http::withBasicAuth('test','test')
                 ->acceptJson()
-                ->retry(3, 1000) // retry 3 kali, delay 1 detik
+                ->retry(3, 1000)
                 ->timeout(10)
                 ->post($webhookUrl, [
                     'verification_id' => $verification->id,
-                    'student_id' => $student->id,
-                    'phone' => $student->phone,
-                    'file_path' => '/home/node/.n8n-files/ijazah/' . basename($path),
+                    'student_id'      => $student->id,
+                    'phone'           => $student->phone,
+                    'file_path'       => '/home/node/.n8n-files/ijazah/' . basename($path),
                 ]);
 
             if ($response->successful()) {
-                Log::info('n8n webhook delivered', [
+                Log::info('N8N webhook delivered', [
                     'url' => $webhookUrl,
                     'status' => $response->status(),
                     'body' => $response->body(),
-                    'verification_id' => $verification->id
                 ]);
-                session()->flash('success', 'Ijazah berhasil diupload. N8N workflow otomatis dijalankan.');
+                session()->flash('success', 'Ijazah berhasil diupload. N8N workflow dijalankan.');
             } else {
-                Log::error('n8n webhook failed', [
-                    'url' => $webhookUrl,
+                Log::error('N8N webhook failed', [
                     'status' => $response->status(),
                     'body' => $response->body(),
-                    'verification_id' => $verification->id
                 ]);
-                session()->flash('error', 'Upload berhasil tapi N8N gagal (status: ' . $response->status() . ').');
+                session()->flash('error', 'Upload berhasil tapi N8N gagal.');
             }
         } catch (\Throwable $e) {
-            Log::error('n8n webhook exception', [
-                'message' => $e->getMessage(),
-                'verification_id' => $verification->id
-            ]);
+            Log::error('N8N webhook exception', ['message' => $e->getMessage()]);
             session()->flash('error', 'Gagal menghubungi N8N: ' . $e->getMessage());
         }
 
-        // Reset hanya properti file
-        $this->reset('ijazah');
+        $this->reset(['ijazah', 'search', 'student_id']);
     }
 
     public function render()
     {
         return view('livewire.upload-ijazah', [
-            'students' => Student::all(),
+            'students' => $this->getStudents(),
         ])->layout('layouts.app');
     }
 }

@@ -4,7 +4,7 @@ document.addEventListener('livewire:load', () => {
 
     form.addEventListener('submit', () => {
         const btn = form.querySelector('.akadify-btn');
-        if (btn) {
+        if (btn && !btn.disabled) {
             btn.disabled = true;
             btn.innerText = 'Memverifikasi...';
         }
