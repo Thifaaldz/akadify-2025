@@ -84,7 +84,7 @@ services:
       - "8001:8000"
     volumes:
       - ./ocr:/app
-      - ./src/storage/app:/data
+      - ./src:/var/www/html
     networks:
       - workflow_network
 

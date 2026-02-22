@@ -19,8 +19,8 @@ Livewire::setScriptRoute(function ($handle) {
 /*
 / END
 */
-//Route::get('/', function () {
-//    return view('welcome');
-//});
+Route::get('/', function () {
+    return view('welcome');
+});
 
 Route::get('/upload-ijazah', UploadIjazah::class);

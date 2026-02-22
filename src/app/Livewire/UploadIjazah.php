@@ -126,7 +126,7 @@ class UploadIjazah extends Component
                     'verification_id' => $verification->id,
                     'student_id'      => $student->id,
                     'phone'           => $student->phone,
-                    'file_path'       => '/home/node/.n8n-files/ijazah/' . basename($path),
+                    'file_path' => storage_path('app/ijazah/' . basename($path)),
                 ]);
 
             if ($response->successful()) {
